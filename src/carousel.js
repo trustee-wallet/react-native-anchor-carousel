@@ -218,13 +218,13 @@ function Carousel(props, ref) {
     const marginSingleItemSide = itemTotalMarginBothSide / 2;
     if (isFirstItem(index)) {
       return !!inverted
-        ? { marginLeft: marginSingleItemSide / 2 }
-        : { marginRight: marginSingleItemSide / 2 };
+        ? { marginLeft: marginSingleItemSide}
+        : { marginRight: marginSingleItemSide};
     }
     if (isLastItem(index)) {
       return !!inverted
-        ? { marginRight: marginSingleItemSide / 2 }
-        : { marginLeft: marginSingleItemSide / 2 };
+        ? { marginRight: marginSingleItemSide}
+        : { marginLeft: marginSingleItemSide};
     }
     return { marginHorizontal: marginSingleItemSide };
   }
