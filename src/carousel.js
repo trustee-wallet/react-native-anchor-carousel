@@ -2,10 +2,17 @@ import React, {
   useImperativeHandle,
   useRef,
   useState,
-  forwardRef
+  forwardRef,
+  useCallback
 } from 'react';
 import { StyleSheet, Dimensions, FlatList, View } from 'react-native';
-import Reanimated, { useSharedValue, useAnimatedStyle, interpolate, Extrapolate } from 'react-native-reanimated';
+import Reanimated, {
+    useSharedValue,
+    useAnimatedStyle,
+    interpolate,
+    Extrapolate,
+    useAnimatedScrollHandler, runOnJS
+} from 'react-native-reanimated';
 
 const { width: windowWidth } = Dimensions.get('window');
 
@@ -87,7 +94,6 @@ function Carousel(props, ref) {
   } = props;
   const scrollViewRef = useRef(null);
   const currentIndexRef = useRef(initialIndex);
-  const scrollXRef = useRef(0);
   const scrollXBeginRef = useRef(0);
   const halfContainerWidth = containerWidth / 2;
   const halfItemWidth = itemWidth / 2;
@@ -95,7 +101,7 @@ function Carousel(props, ref) {
   const containerStyle = [styles.container, { width: containerWidth }, style];
   const dataLength = data ? data.length : 0;
 
-  const [scroll, setScroll] = useState(0)
+  const [scroll, setScroll] = useState(0);
 
   useImperativeHandle(ref, () => ({
     scrollToIndex: scrollToIndex
@@ -132,29 +138,6 @@ function Carousel(props, ref) {
     });
   }
 
-  function handleOnScrollBeginDrag() {
-    onScrollBeginDrag && onScrollBeginDrag();
-    scrollXBeginRef.current = scrollXRef.current;
-  }
-
-  function handleOnScrollEndDrag() {
-    onScrollEndDrag && onScrollEndDrag();
-    if (scrollXRef.current < 0) {
-      return;
-    }
-    const scrollDistance = scrollXRef.current - scrollXBeginRef.current;
-    scrollXBeginRef.current = 0;
-    if (Math.abs(scrollDistance) < minScrollDistance) {
-      scrollToIndex(currentIndexRef.current);
-      return;
-    }
-    if (scrollDistance < 0) {
-      scrollToIndex(currentIndexRef.current - 1);
-    } else {
-      scrollToIndex(currentIndexRef.current + 1);
-    }
-  }
-
   function getItemTotalMarginBothSide() {
     const compensatorOfSeparatorByScaleEffect = (1 - inActiveScale) * itemWidth;
     return separatorWidth - compensatorOfSeparatorByScaleEffect / 2;
@@ -184,6 +167,7 @@ function Carousel(props, ref) {
       animatedOffset
     );
   }
+
   function getStartPontInterpolate(index, midPoint) {
     if (index === 1) {
       return 0;
@@ -252,6 +236,36 @@ function Carousel(props, ref) {
     );
   }
 
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      const scroll = Math.round(event.contentOffset.x);
+      runOnJS(setScroll)(scroll);
+    }
+  });
+
+  const handleOnScrollBeginDrag = useCallback(() => {
+    onScrollBeginDrag && onScrollBeginDrag();
+    scrollXBeginRef.current = scroll;
+  }, [scroll]);
+
+  const handleOnScrollEndDrag = useCallback(() => {
+    onScrollEndDrag && onScrollEndDrag();
+    if (scroll < 0) {
+      return;
+    }
+    const scrollDistance = scroll - scrollXBeginRef.current;
+    scrollXBeginRef.current = 0;
+    if (Math.abs(scrollDistance) < minScrollDistance) {
+      scrollToIndex(currentIndexRef.current);
+      return;
+    }
+    if (scrollDistance < 0) {
+      scrollToIndex(currentIndexRef.current - 1);
+    } else {
+      scrollToIndex(currentIndexRef.current + 1);
+    }
+  }, [scroll, minScrollDistance]);
+
   return (
     <ReanimatedView>
       <ReanimatedFlatList
@@ -266,10 +280,7 @@ function Carousel(props, ref) {
         initialScrollIndex={initialIndex}
         automaticallyAdjustContentInsets={false}
         showsHorizontalScrollIndicator={showsHorizontalScrollIndicator}
-        onScroll={(event) => {
-          setScroll(event.nativeEvent.contentOffset.x);
-          scrollXRef.current = event.nativeEvent.contentOffset.x
-        }}
+        onScroll={scrollHandler}
         keyExtractor={keyExtractor}
         getItemLayout={getItemLayout}
         renderItem={renderItemContainer}
